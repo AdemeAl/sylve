@@ -5,6 +5,7 @@ import { sb, supabaseConfigured } from "./supabase";
 import { freshState, normalizeState, GardenState, Session, SPECIES, graceLabel } from "./catalog";
 import { dayKey, lsGet, lsSet } from "./utils";
 import { gardenSlots } from "./garden3d";
+import { ambience, SoundId } from "./ambience";
 
 export type Profile = { id: string; username: string; display_name: string; avatar_url: string | null; invite_code: string };
 export type Active = { start: number; end: number; planned: number; s: string; sp: string; mode: "pomo" | "timer" | "chrono"; beat: number; hiddenAt?: number | null; grace?: number };
@@ -163,6 +164,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setActive(a);
     persistActive(a);
     try { audio.current = audio.current || new (window.AudioContext || (window as any).webkitAudioContext)(); } catch {}
+    if (st.sound) { try { ambience().play(st.sound as SoundId, st.volume ?? 0.6); } catch {} }
     if (st.keepAwake) (navigator as any).wakeLock?.request("screen").then((w: any) => { wake.current = w; w.addEventListener?.("release", () => { if (wake.current === w) wake.current = null; }); }).catch(() => {});
   }, [toast]);
 
@@ -174,6 +176,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     persistActive(null);
     wake.current?.release?.().catch(() => {});
     wake.current = null;
+    try { ambience().stop(); } catch {}
     const now = Math.min(Date.now(), a.end);
     const elapsed = Math.max(0, Math.round((now - a.start) / 6e4));
     const m = ok ? (a.mode === "chrono" ? elapsed : a.planned) : elapsed;

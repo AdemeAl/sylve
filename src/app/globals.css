@@ -160,3 +160,8 @@ a{color:inherit;text-decoration:none}
 .member.on .av{border-color:var(--mint)}
 .member.away .av{border-color:var(--danger)}
 .center{display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center}
+
+.eq{display:inline-flex;align-items:flex-end;gap:2px;height:12px}
+.eq i{display:block;width:3px;background:var(--mint);border-radius:2px;height:4px}
+@media (prefers-reduced-motion:no-preference){.eq i{animation:eq .9s ease-in-out infinite}.eq i:nth-child(2){animation-delay:.2s}.eq i:nth-child(3){animation-delay:.4s}@keyframes eq{0%,100%{height:4px}50%{height:12px}}}
+.linkbtn{border:0;background:none;color:var(--mint);padding:0;font:inherit;text-decoration:underline;cursor:pointer}

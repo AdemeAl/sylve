@@ -6,6 +6,8 @@ import { SPECIES, TILES, GRACE_OPTIONS, graceLabel, graceText } from "@/lib/cata
 import { fmtClock, fmtMin, streakOf } from "@/lib/utils";
 import { gardenSlots } from "@/lib/garden3d";
 import GardenCanvas from "@/components/GardenCanvas";
+import SoundPicker from "@/components/SoundPicker";
+import { SOUNDS } from "@/lib/ambience";
 import { Avatar, Chevron, Coin, Flame, Overlay, Thumb } from "@/components/ui";
 
 export default function Home() {
@@ -14,7 +16,7 @@ export default function Home() {
   const [editing, setEditing] = useState(false);
   const [selInv, setSelInv] = useState<string | null>(null);
   const [selTile, setSelTile] = useState<string | null>(null);
-  const [sheet, setSheet] = useState<null | "setup" | "garden">(null);
+  const [sheet, setSheet] = useState<null | "setup" | "garden" | "sound">(null);
   const [, force] = useState(0);
   const [armed, setArmed] = useState(false);
 
@@ -83,6 +85,7 @@ export default function Home() {
           }}>{armed ? "Toucher encore pour confirmer" : "Abandonner"}</button>
         )}
         <div className="small">{graceText(active.grace ?? 120)}</div>
+        <button className="setup" onClick={() => setSheet("sound")}><SoundIcon on={!!st.sound} />{st.sound ? SOUNDS.find((x) => x.id === st.sound)?.name : "Ajouter un son"}<Chevron /></button>
       </>
     );
   } else if (brk) {
@@ -159,6 +162,7 @@ export default function Home() {
       </div>
 
       {sheet === "setup" && <SetupSheet onClose={() => setSheet(null)} />}
+      {sheet === "sound" && <Overlay onClose={() => setSheet(null)}><SoundPicker /><button className="go" onClick={() => setSheet(null)}>Fermer</button></Overlay>}
       {sheet === "garden" && (
         <Overlay onClose={() => setSheet(null)}>
           <h2>Mon jardin</h2>
@@ -174,6 +178,15 @@ export default function Home() {
         </Overlay>
       )}
     </section>
+  );
+}
+
+function SoundIcon({ on }: { on: boolean }) {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 9v6h4l5 4V5L8 9H4z" />
+      {on ? <path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12" /> : <path d="m17 9 5 6m0-6-5 6" />}
+    </svg>
   );
 }
 
@@ -229,6 +242,7 @@ function SetupSheet({ onClose }: { onClose: () => void }) {
           })}
         </div>
       </div>
+      <SoundPicker />
       <div>
         <h3>Si je quitte l&apos;appli</h3>
         <div className="chips">

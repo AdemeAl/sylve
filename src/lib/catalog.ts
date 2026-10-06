@@ -33,7 +33,7 @@ export const PALETTE = ["#6fd3b0", "#ffb85c", "#8fa8ff", "#ff8fb3", "#c4dd6a", "
 
 export type Tile = { k: string; type: string; q: number; r: number; rot: number };
 export type Subject = { id: string; name: string; color: string };
-export type Settings = { mode: "pomo" | "timer" | "chrono"; free: number; work: number; pause: number; subject: string; grace: number; keepAwake: boolean };
+export type Settings = { mode: "pomo" | "timer" | "chrono"; free: number; work: number; pause: number; subject: string; grace: number; keepAwake: boolean; sound: string; volume: number };
 
 // Délai (en secondes) avant que l'arbre fane quand on quitte l'appli. 0 = jamais.
 export const GRACE_OPTIONS = [60, 120, 300, 0];
@@ -77,7 +77,7 @@ export function freshState(): GardenState {
     ],
     tileInv: {},
     claimed: "",
-    settings: { mode: "pomo", free: 45, work: 25, pause: 5, subject: "an", grace: 120, keepAwake: true },
+    settings: { mode: "pomo", free: 45, work: 25, pause: 5, subject: "an", grace: 120, keepAwake: true, sound: "", volume: 0.6 },
   };
 }
 
