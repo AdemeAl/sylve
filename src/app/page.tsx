@@ -2,7 +2,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useApp } from "@/lib/store";
-import { SPECIES, TILES } from "@/lib/catalog";
+import { SPECIES, TILES, GRACE_OPTIONS, graceLabel, graceText } from "@/lib/catalog";
 import { fmtClock, fmtMin, streakOf } from "@/lib/utils";
 import { gardenSlots } from "@/lib/garden3d";
 import GardenCanvas from "@/components/GardenCanvas";
@@ -82,7 +82,7 @@ export default function Home() {
             else { setArmed(false); app.stopFocus(false, "Session abandonnée."); }
           }}>{armed ? "Toucher encore pour confirmer" : "Abandonner"}</button>
         )}
-        <div className="small">Quitter l&apos;écran plus de 10 s fait faner l&apos;arbre.</div>
+        <div className="small">{graceText(active.grace ?? 120)}</div>
       </>
     );
   } else if (brk) {
@@ -229,6 +229,21 @@ function SetupSheet({ onClose }: { onClose: () => void }) {
           })}
         </div>
       </div>
+      <div>
+        <h3>Si je quitte l&apos;appli</h3>
+        <div className="chips">
+          {GRACE_OPTIONS.map((g) => (
+            <button key={g} className="chip" aria-pressed={(st.grace ?? 120) === g} onClick={() => update((s) => { s.settings.grace = g; })}>
+              {g === 0 ? "Ne jamais faner" : "Fane après " + graceLabel(g)}
+            </button>
+          ))}
+        </div>
+        <p className="small" style={{ textAlign: "left", margin: "8px 0 0" }}>L&apos;écran qui s&apos;éteint compte comme quitter l&apos;appli : le navigateur ne fait pas la différence.</p>
+      </div>
+      <label className="row" style={{ justifyContent: "space-between", cursor: "pointer" }}>
+        <span><b style={{ fontWeight: 500 }}>Garder l&apos;écran allumé</b><br /><span className="small">Pendant le focus, ton téléphone ne se met pas en veille.</span></span>
+        <input type="checkbox" checked={st.keepAwake !== false} onChange={(e) => { const v = e.target.checked; update((s) => { s.settings.keepAwake = v; }); }} style={{ width: 22, height: 22, accentColor: "var(--mint2)", flex: "none" }} />
+      </label>
       <button className="go" onClick={onClose}>Valider</button>
     </Overlay>
   );

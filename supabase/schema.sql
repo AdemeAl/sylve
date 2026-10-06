@@ -99,8 +99,10 @@ create table if not exists public.groups (
   starts_at timestamptz,
   ends_at timestamptz,
   failed_by uuid,
+  grace int not null default 120,
   created_at timestamptz not null default now()
 );
+alter table public.groups add column if not exists grace int not null default 120;
 
 create table if not exists public.group_members (
   group_id uuid not null references public.groups(id) on delete cascade,

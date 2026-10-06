@@ -2,12 +2,12 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { sb, supabaseConfigured } from "./supabase";
-import { freshState, normalizeState, GardenState, Session, SPECIES } from "./catalog";
+import { freshState, normalizeState, GardenState, Session, SPECIES, graceLabel } from "./catalog";
 import { dayKey, lsGet, lsSet } from "./utils";
 import { gardenSlots } from "./garden3d";
 
 export type Profile = { id: string; username: string; display_name: string; avatar_url: string | null; invite_code: string };
-export type Active = { start: number; end: number; planned: number; s: string; sp: string; mode: "pomo" | "timer" | "chrono"; beat: number; hiddenAt?: number | null };
+export type Active = { start: number; end: number; planned: number; s: string; sp: string; mode: "pomo" | "timer" | "chrono"; beat: number; hiddenAt?: number | null; grace?: number };
 export type PresenceInfo = { user_id: string; focusing: boolean; until?: number; mode?: string; group?: string | null };
 
 type Ctx = {
@@ -159,11 +159,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const now = Date.now();
     const { slots } = gardenSlots(Sref.current.tiles);
     if (sessionsRef.current.length >= slots.length) toast("Jardin plein : ton arbre poussera dès que tu ajoutes une tuile");
-    const a: Active = { start: now, end: now + planned * 6e4, planned, s: st.subject, sp: Sref.current.current, mode: st.mode, beat: now };
+    const a: Active = { start: now, end: now + planned * 6e4, planned, s: st.subject, sp: Sref.current.current, mode: st.mode, beat: now, grace: st.grace ?? 120 };
     setActive(a);
     persistActive(a);
     try { audio.current = audio.current || new (window.AudioContext || (window as any).webkitAudioContext)(); } catch {}
-    (navigator as any).wakeLock?.request("screen").then((w: any) => (wake.current = w)).catch(() => {});
+    if (st.keepAwake) (navigator as any).wakeLock?.request("screen").then((w: any) => { wake.current = w; w.addEventListener?.("release", () => { if (wake.current === w) wake.current = null; }); }).catch(() => {});
   }, [toast]);
 
   const stopFocus = useCallback((ok: boolean, reason?: string) => {
@@ -202,8 +202,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     try {
       const a: Active = JSON.parse(j);
       const last = a.hiddenAt || a.beat;
-      if (Date.now() - last <= 10000) setActive({ ...a, hiddenAt: null });
-      else { activeRef.current = a; setTimeout(() => stopFocus(false, "Tu as quitté Sylve plus de 10 secondes."), 1500); }
+      const g = (a.grace ?? 120) * 1000;
+      if (g === 0 || Date.now() - last <= g) setActive({ ...a, hiddenAt: null });
+      else { activeRef.current = a; setTimeout(() => stopFocus(false, `Tu as quitté Sylve plus de ${graceLabel(a.grace ?? 120)}.`), 1500); }
     } catch { persistActive(null); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -233,7 +234,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       else {
         const away = Date.now() - (a.hiddenAt || Date.now());
         a.hiddenAt = null;
-        if (away > 10000) stopFocus(false, "Tu as quitté Sylve plus de 10 secondes.");
+        const g = (a.grace ?? 120) * 1000;
+        if (Sref.current.settings.keepAwake && !wake.current) (navigator as any).wakeLock?.request("screen").then((w: any) => { wake.current = w; w.addEventListener?.("release", () => { if (wake.current === w) wake.current = null; }); }).catch(() => {});
+        if (g > 0 && away > g) stopFocus(false, `Tu as quitté Sylve plus de ${graceLabel(a.grace ?? 120)}.`);
         else if (away > 1500) toast("Ouf, revenu à temps (" + Math.round(away / 1000) + " s)");
       }
     };

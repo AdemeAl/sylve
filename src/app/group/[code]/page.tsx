@@ -5,11 +5,14 @@ import Link from "next/link";
 import { useApp } from "@/lib/store";
 import { sb } from "@/lib/supabase";
 import { fmtClock, fmtMin, lsGet, lsSet } from "@/lib/utils";
+import { graceLabel } from "@/lib/catalog";
 import GardenCanvas from "@/components/GardenCanvas";
 import { Avatar, Coin } from "@/components/ui";
 
-type Group = { id: string; code: string; host_id: string; status: "lobby" | "running" | "done" | "failed"; minutes: number; species: string; starts_at: string | null; ends_at: string | null; failed_by: string | null };
+type Group = { id: string; code: string; host_id: string; status: "lobby" | "running" | "done" | "failed"; minutes: number; species: string; starts_at: string | null; ends_at: string | null; failed_by: string | null; grace?: number | null };
 type P = { id: string; username: string; display_name: string; avatar_url: string | null };
+
+const g0 = (g: { grace?: number | null } | null) => (g && g.grace != null ? g.grace : 120);
 
 export default function GroupPage() {
   const { code } = useParams<{ code: string }>();
@@ -74,7 +77,7 @@ export default function GroupPage() {
     await sb().from("groups").update({ status: "failed", failed_by: who }).eq("id", g.id).eq("status", "running");
   }, []);
 
-  // Règle des 10 secondes pour soi-même
+  // Règle du délai pour soi-même (0 = jamais)
   useEffect(() => {
     const onVis = () => {
       chRef.current?.track({ away: document.visibilityState === "hidden" });
@@ -84,7 +87,8 @@ export default function GroupPage() {
       else {
         const away = Date.now() - (hiddenAt.current || Date.now());
         hiddenAt.current = null;
-        if (away > 10000) fail(profile.id);
+        const g = (g0(groupRef.current)) * 1000;
+        if (g > 0 && away > g) fail(profile.id);
         else if (away > 1500) toast("Ouf, revenu à temps (" + Math.round(away / 1000) + " s)");
       }
     };
@@ -101,10 +105,11 @@ export default function GroupPage() {
       if (g.status === "running" && g.starts_at && g.ends_at) {
         const now = Date.now();
         if (now >= +new Date(g.starts_at) && startPresent.current.size === 0) Object.keys(here).forEach((k) => startPresent.current.add(k));
-        // un membre parti (présence perdue ou écran caché) depuis plus de 10 s fait échouer la session
+        // un membre parti (présence perdue ou écran caché) plus longtemps que le délai fait échouer la session
+        const gMs = g0(g) * 1000;
         startPresent.current.forEach((uid) => {
           const gone = !here[uid] || here[uid].away;
-          if (gone) { goneSince.current[uid] = goneSince.current[uid] || now; if (now - goneSince.current[uid] > 10500 && uid !== profile.id) fail(uid); }
+          if (gone) { goneSince.current[uid] = goneSince.current[uid] || now; if (gMs > 0 && now - goneSince.current[uid] > gMs + 1500 && uid !== profile.id) fail(uid); }
           else delete goneSince.current[uid];
         });
         if (now >= +new Date(g.ends_at)) sb().from("groups").update({ status: "done" }).eq("id", g.id).eq("status", "running");
@@ -112,6 +117,17 @@ export default function GroupPage() {
     }, 500);
     return () => clearInterval(id);
   }, [here, profile, fail]);
+
+  // Garder l'écran allumé pendant la session de groupe
+  useEffect(() => {
+    if (group?.status !== "running" || S.settings.keepAwake === false) return;
+    let lock: any = null, off = false;
+    const take = () => (navigator as any).wakeLock?.request("screen").then((w: any) => { if (off) w.release(); else lock = w; }).catch(() => {});
+    take();
+    const onVis = () => { if (document.visibilityState === "visible") take(); };
+    document.addEventListener("visibilitychange", onVis);
+    return () => { off = true; document.removeEventListener("visibilitychange", onVis); lock?.release?.().catch(() => {}); };
+  }, [group?.status, S.settings.keepAwake]);
 
   // Enregistrer le résultat une seule fois
   useEffect(() => {
@@ -196,7 +212,7 @@ export default function GroupPage() {
           <>
             <div className="setup">{now < starts ? "Départ imminent" : "Concentrez-vous ensemble"}</div>
             <div className="digits">{now < starts ? fmtClock((starts - now) / 1000) : fmtClock((ends - now) / 1000)}</div>
-            <p className="small">Si quelqu&apos;un quitte l&apos;appli plus de 10 s, l&apos;arbre commun fane pour tout le monde.</p>
+            <p className="small">{g0(group) === 0 ? "L'arbre commun ne fane jamais : concentrez-vous à votre rythme." : `Si quelqu'un quitte l'appli plus de ${graceLabel(g0(group))}, l'arbre commun fane pour tout le monde.`}</p>
           </>
         )}
         {group.status === "done" && (
@@ -210,7 +226,7 @@ export default function GroupPage() {
         {group.status === "failed" && (
           <>
             <h2 style={{ margin: 0 }}>L&apos;arbre commun a fané</h2>
-            <p className="small">{failer ? (failer.id === profile.id ? "Tu as quitté l'appli plus de 10 secondes." : `${failer.display_name} a quitté l'appli plus de 10 secondes.`) : "Un participant a quitté la session."}</p>
+            <p className="small">{failer ? (failer.id === profile.id ? `Tu as quitté l'appli plus de ${graceLabel(g0(group))}.` : `${failer.display_name} a quitté l'appli plus de ${graceLabel(g0(group))}.`) : "Un participant a quitté la session."}</p>
             <Link className="go plain" href="/friends">Retour aux amis</Link>
           </>
         )}

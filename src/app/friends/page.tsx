@@ -49,7 +49,7 @@ export default function Friends() {
   const createGroup = async (minutes: number) => {
     const code = randomCode(6);
     const c = sb();
-    const { data, error } = await c.from("groups").insert({ code, host_id: profile!.id, minutes, species: S.current }).select().single();
+    const { data, error } = await c.from("groups").insert({ code, host_id: profile!.id, minutes, species: S.current, grace: S.settings.grace ?? 120 }).select().single();
     if (error) { toast("Impossible de créer la session : " + error.message); return; }
     await c.from("group_members").insert({ group_id: data.id, user_id: profile!.id });
     router.push("/group/" + code);
@@ -63,7 +63,7 @@ export default function Friends() {
 
       <section className="card glass center">
         <h2 style={{ margin: 0 }}>Session de groupe</h2>
-        <p className="small" style={{ margin: 0 }}>Concentrez-vous ensemble. Un arbre commun pousse ; si quelqu&apos;un quitte l&apos;appli plus de 10 s, il fane pour tout le monde.</p>
+        <p className="small" style={{ margin: 0 }}>Concentrez-vous ensemble. Un arbre commun pousse ; si quelqu&apos;un quitte l&apos;appli trop longtemps, il fane pour tout le monde. Le délai suit ton réglage de session.</p>
         <button className="go" onClick={() => setGroupSheet(true)}>Lancer une session de groupe</button>
         <form className="copy" style={{ width: "100%" }} onSubmit={(e) => { e.preventDefault(); if (joinCode.trim()) router.push("/group/" + joinCode.trim().toUpperCase()); }}>
           <input value={joinCode} onChange={(e) => setJoinCode(e.target.value)} placeholder="Code reçu (ex. K7QH2M)" aria-label="Code de session" maxLength={8} />
